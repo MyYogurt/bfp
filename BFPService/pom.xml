@@ -19,12 +19,6 @@
     <dependencies>
         <dependency>
             <groupId>com.bfp</groupId>
-            <artifactId>BFPAuth</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.bfp</groupId>
             <artifactId>BFPAuthHandler</artifactId>
             <version>0.0.1-SNAPSHOT</version>
             <scope>compile</scope>
