@@ -1,4 +1,4 @@
-name: Maven Package
+name: Maven Build and Test
 
 on:
   workflow_dispatch:
