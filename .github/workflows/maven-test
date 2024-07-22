@@ -1,0 +1,28 @@
+name: Maven Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+
+jobs:
+  build:
+
+    runs-on: codebuild-<project-name>-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Build with Maven
+        run: mvn install
