@@ -1,0 +1,43 @@
+openapi: "3.0.0"
+info:
+  title: SubtaskAI Service Model
+  version: 1.0.0
+paths:
+  /initiateAuth:
+    get:
+      summary: Initiate auth and get credentials
+      operationId: initiateAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: InitiateAuthRequest
+      responses:
+        200:
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: InitiateAuthResponse
+components:
+  schemas:
+    InitiateAuthRequest:
+      type: object
+      required:
+        - username
+        - password
+      additionalProperties: false
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    InitiateAuthResponse:
+      type: object
+      required:
+        - accessToken
+      additionalProperties: false
+      properties:
+        accessToken:
+          type: string
