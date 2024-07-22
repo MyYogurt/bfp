@@ -14,7 +14,7 @@ on:
 jobs:
   build:
 
-    runs-on: codebuild-<project-name>-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: codebuild-build-and-test-${{ github.run_id }}-${{ github.run_attempt }}
     permissions:
       contents: read
 
