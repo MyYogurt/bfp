@@ -40,13 +40,11 @@
                         <configuration>
                             <inputSpec>${project.basedir}/src/main/resources/AuthModel.yml</inputSpec>
                             <modelPackage>com.bfp.auth.model</modelPackage>
-                            <globalProperties>
-                                <supportingFiles>false</supportingFiles>
-                                <apiTests>false</apiTests>
-                                <modeltests>false</modeltests>
-                            </globalProperties>
                             <generatorName>java</generatorName>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiTests>false</generateApiTests>
                             <configOptions>
+                                <openApiNullable>true</openApiNullable>
                                 <library>native</library>
                                 <sourceFolder>src/main/java</sourceFolder>
                                 <serializationLibrary>jackson</serializationLibrary>
