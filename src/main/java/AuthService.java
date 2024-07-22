@@ -1,5 +1,3 @@
-package com.bfp.service;
-
 import com.bfp.auth.AuthHandler;
 import com.bfp.auth.model.InitiateAuthRequest;
 import org.springframework.beans.factory.annotation.Autowired;

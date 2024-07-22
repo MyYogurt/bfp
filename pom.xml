@@ -23,7 +23,6 @@
 	</developers>
 	<modules>
 		<module>BFPAuth</module>
-		<module>BFPService</module>
         <module>CommonModels</module>
     </modules>
 	<scm>
