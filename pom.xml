@@ -25,7 +25,8 @@
 		<module>BFPAuth</module>
 		<module>BFPService</module>
         <module>CommonModels</module>
-    </modules>
+		<module>BFPCDK</module>
+	</modules>
 	<scm>
 		<connection/>
 		<developerConnection/>
@@ -34,16 +35,14 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-		<spring-modulith.version>1.2.1</spring-modulith.version>
+		<aws.java.sdk.version>2.26.22</aws.java.sdk.version>
 	</properties>
+
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-core</artifactId>
 		</dependency>
 
 		<dependency>
@@ -68,11 +67,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.restdocs</groupId>
 			<artifactId>spring-restdocs-mockmvc</artifactId>
 			<scope>test</scope>
@@ -81,9 +75,9 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>org.springframework.modulith</groupId>
-				<artifactId>spring-modulith-bom</artifactId>
-				<version>${spring-modulith.version}</version>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.java.sdk.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
