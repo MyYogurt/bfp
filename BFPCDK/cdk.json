@@ -1,3 +1,3 @@
 {
-  "app": "mvn -q exec:java"
+  "app": "mvn package && mvn -q exec:java"
 }
