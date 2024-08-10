@@ -2,6 +2,7 @@ package com.bfp.cdk;
 
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.ec2.Vpc;
@@ -11,8 +12,10 @@ import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.ContainerImage;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedFargateService;
 import software.amazon.awscdk.services.ecs.patterns.ApplicationLoadBalancedTaskImageOptions;
-import software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck;
+import software.amazon.awscdk.services.elasticloadbalancingv2.Protocol;
 import software.constructs.Construct;
+
+import java.util.List;
 
 public class BFPServiceStatefulStack extends Stack {
     public BFPServiceStatefulStack(final Construct parent, final String id) {
@@ -45,12 +48,18 @@ public class BFPServiceStatefulStack extends Stack {
                                 .image(ContainerImage.fromEcrRepository(ecrRepo, "latest"))
                                 .containerPort(8080)
                                 .build())
+                .healthCheck(software.amazon.awscdk.services.ecs.HealthCheck.builder()
+                        .command(List.of("CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"))
+                        .build())
                 .publicLoadBalancer(true)
                 .build();
 
-        fargateService.getTargetGroup().configureHealthCheck(HealthCheck.builder()
+        fargateService.getTargetGroup().configureHealthCheck(software.amazon.awscdk.services.elasticloadbalancingv2.HealthCheck.builder()
                 .path("/actuator/health")
                 .healthyHttpCodes("200")
+                .protocol(Protocol.HTTP)
+                .port("8080")
+                .interval(Duration.seconds(30))
                 .build());
 
         new CfnOutput(this, "LoadBalancerDNS", CfnOutputProps.builder()
