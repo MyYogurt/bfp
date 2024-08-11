@@ -12,14 +12,14 @@ paths:
         content:
           application/json:
             schema:
-              type: InitiateAuthRequest
+              $ref: '#/components/schemas/InitiateAuthRequest'
       responses:
         200:
           description: Successfully authenticated
           content:
             application/json:
               schema:
-                type: InitiateAuthResponse
+                $ref: '#/components/schemas/InitiateAuthResponse'
 components:
   schemas:
     InitiateAuthRequest:
