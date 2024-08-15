@@ -12,6 +12,8 @@ phases:
       - IMAGE_TAG=${COMMIT_HASH:=latest}
   build:
     commands:
+      - echo Building BFP
+      - maven install
       - echo Building the Docker image...
       - cd BFPService
       - docker build -t $REPOSITORY_NAME .
