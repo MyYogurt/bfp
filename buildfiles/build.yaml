@@ -8,5 +8,3 @@ phases:
     commands:
       - echo Building BFP
       - mvn install --no-transfer-progress
-artifacts:
-  files: target/BFPService-0.0.1-SNAPSHOT.jar
