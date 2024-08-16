@@ -1,0 +1,12 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto21
+  build:
+    commands:
+      - echo Building BFP
+      - mvn install --no-transfer-progress
+artifacts:
+  files: target/BFPService-0.0.1-SNAPSHOT.jar
