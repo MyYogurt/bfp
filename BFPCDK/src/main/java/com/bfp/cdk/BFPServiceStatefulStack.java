@@ -14,8 +14,22 @@ import software.amazon.awscdk.services.apprunner.alpha.Service;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apprunner.alpha.Source;
+import software.amazon.awscdk.services.cognito.AccountRecovery;
+import software.amazon.awscdk.services.cognito.AuthFlow;
+import software.amazon.awscdk.services.cognito.IUserPool;
+import software.amazon.awscdk.services.cognito.IUserPoolClient;
+import software.amazon.awscdk.services.cognito.Mfa;
+import software.amazon.awscdk.services.cognito.PasswordPolicy;
+import software.amazon.awscdk.services.cognito.SignInAliases;
+import software.amazon.awscdk.services.cognito.StandardAttribute;
+import software.amazon.awscdk.services.cognito.StandardAttributes;
+import software.amazon.awscdk.services.cognito.UserPool;
+import software.amazon.awscdk.services.cognito.UserPoolClient;
+import software.amazon.awscdk.services.cognito.UserPoolEmail;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.Repository;
+import software.amazon.awscdk.services.secretsmanager.ISecret;
+import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.constructs.Construct;
 
 public class BFPServiceStatefulStack extends Stack {
@@ -25,6 +39,48 @@ public class BFPServiceStatefulStack extends Stack {
 
     public BFPServiceStatefulStack(final Construct parent, final String id, final StackProps props) {
         super(parent, id, props);
+
+        IUserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
+                .userPoolName("BFPUserPool")
+                .passwordPolicy(PasswordPolicy.builder()
+                        .minLength(8)
+                        .requireLowercase(false)
+                        .requireUppercase(false)
+                        .requireDigits(false)
+                        .requireSymbols(false)
+                        .build())
+                .accountRecovery(AccountRecovery.EMAIL_ONLY)
+                .deletionProtection(true)
+                .email(UserPoolEmail.withCognito())
+                .signInAliases(SignInAliases.builder()
+                        .username(true)
+                        .email(false)
+                        .build())
+                .signInCaseSensitive(true)
+                .selfSignUpEnabled(false)
+                .mfa(Mfa.OFF)
+                .standardAttributes(StandardAttributes.builder()
+                        .email(StandardAttribute.builder()
+                                .required(true)
+                                .build())
+                        .build())
+                .build();
+
+        IUserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
+                .userPoolClientName("BFPUserPoolClient")
+                .userPool(userPool)
+                .authFlows(AuthFlow.builder()
+                        .userPassword(true)
+                        .adminUserPassword(true)
+                        .build())
+                .generateSecret(true)
+                .build();
+
+        ISecret secret = Secret.Builder.create(this, "BFPSecret")
+                .secretName("BFPUserPoolClientSecret")
+                .secretName(userPoolClient.getUserPoolClientId())
+                .secretStringValue(userPoolClient.getUserPoolClientSecret())
+                .build();
 
         IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfprepository");
 
