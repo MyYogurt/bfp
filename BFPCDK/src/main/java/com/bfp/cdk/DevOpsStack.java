@@ -10,9 +10,7 @@ import software.amazon.awscdk.services.codebuild.IProject;
 import software.amazon.awscdk.services.codebuild.LinuxArmBuildImage;
 import software.amazon.awscdk.services.codebuild.LoggingOptions;
 import software.amazon.awscdk.services.codebuild.PipelineProject;
-import software.amazon.awscdk.services.codebuild.S3LoggingOptions;
 import software.amazon.awscdk.services.codepipeline.Artifact;
-import software.amazon.awscdk.services.codepipeline.CfnPipeline;
 import software.amazon.awscdk.services.codepipeline.ExecutionMode;
 import software.amazon.awscdk.services.codepipeline.GitConfiguration;
 import software.amazon.awscdk.services.codepipeline.GitPushFilter;
@@ -37,7 +35,6 @@ import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
-import software.constructs.IConstruct;
 
 import java.util.Collections;
 import java.util.List;
@@ -90,9 +87,6 @@ public class DevOpsStack extends Stack {
                                 .enabled(true)
                                 .logGroup(bfpBuildLogGroup)
                                 .build())
-//                        .s3(S3LoggingOptions.builder()
-//                                .enabled(false)
-//                                .build())
                         .build())
                 .role(bfpCodeBuildRole)
                 .environment(standardBuildEnvironment)
@@ -106,9 +100,6 @@ public class DevOpsStack extends Stack {
                                 .enabled(true)
                                 .logGroup(bfpDeployLogGroup)
                                 .build())
-//                        .s3(S3LoggingOptions.builder()
-//                                .enabled(false)
-//                                .build())
                         .build())
                 .role(bfpCodeDeployRole)
                 .environment(standardBuildEnvironment)
