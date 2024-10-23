@@ -12,7 +12,6 @@
     <artifactId>BFPAuth</artifactId>
     <packaging>pom</packaging>
     <modules>
-        <module>BFPAuthModel</module>
         <module>BFPAuthHandler</module>
     </modules>
 

@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  title: SubtaskAI Service Model
+  title: BFP Service Model
   version: 1.0.0
 paths:
   /initiateAuth:
@@ -31,8 +31,10 @@ components:
       properties:
         username:
           type: string
+          minLength: 1
         password:
           type: string
+          minLength: 1
     InitiateAuthResponse:
       type: object
       required:
