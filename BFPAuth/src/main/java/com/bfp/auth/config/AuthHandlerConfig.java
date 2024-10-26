@@ -29,6 +29,7 @@ public class AuthHandlerConfig {
 //    public AuthHandler getAuthHandler(CognitoIdentityProviderClient cognitoIdentityProviderClient, CognitoUserPoolClientSecretHashProvider cognitoUserPoolClientSecretHashProvider) {
 //        return new CognitoAuthHandler(cognitoUserPoolClientSecretHashProvider, cognitoIdentityProviderClient, userPoolClientId, userPoolId);
 //    }
+
     @Bean
     public AuthHandler getAuthHandler() {
         return new DummyAuthHandler();
