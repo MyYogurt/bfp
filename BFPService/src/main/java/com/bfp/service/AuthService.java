@@ -3,6 +3,8 @@ package com.bfp.service;
 import com.bfp.auth.AuthHandler;
 import com.bfp.auth.model.InitiateAuthRequest;
 import com.bfp.auth.model.InitiateAuthResponse;
+import com.bfp.exceptions.InvalidParameterException;
+import com.bfp.exceptions.UnauthorizedException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -33,16 +35,13 @@ public class AuthService {
         return response;
     }
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Map<String, String> handleValidationExceptions(
-            MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        return errors;
+    @GetMapping("/exception")
+    public void exception() {
+        throw new InvalidParameterException("This is a test exception");
+    }
+
+    @GetMapping("/unauthorized")
+    public void unauthorized() {
+        throw new UnauthorizedException("Unauthorized!");
     }
 }
