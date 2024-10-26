@@ -31,7 +31,7 @@
                         </goals>
                         <configuration>
                             <inputSpec>${project.basedir}/src/main/resources/Model.yaml</inputSpec>
-                            <modelPackage>com.bfp.auth.model</modelPackage>
+                            <modelPackage>com.bfp.model</modelPackage>
                             <generatorName>java</generatorName>
                             <generateModels>true</generateModels>
                             <generateApis>true</generateApis>

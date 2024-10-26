@@ -20,6 +20,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InitiateAuthResponse'
+        400:
+          $ref: '#/components/responses/Unauthorized'
+
 components:
   schemas:
     InitiateAuthRequest:
