@@ -1,8 +1,9 @@
 package com.bfp.auth.cognito;
 
 import com.bfp.auth.AuthHandler;
-import com.bfp.auth.model.InitiateAuthRequest;
-import com.bfp.auth.model.InitiateAuthResponse;
+import com.bfp.model.AuthenticateRequest;
+import com.bfp.model.AuthenticateResponse;
+import com.bfp.model.exceptions.UnauthorizedException;
 import lombok.NonNull;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminInitiateAuthRequest;
@@ -27,7 +28,7 @@ public class CognitoAuthHandler implements AuthHandler {
     }
 
     @Override
-    public InitiateAuthResponse authenticate(@NonNull final InitiateAuthRequest authenticateRequest) {
+    public AuthenticateResponse authenticate(@NonNull final AuthenticateRequest authenticateRequest) {
         String secretHash = clientSecretHashProvider.getClientSecretHash(userPoolClientId, authenticateRequest.getUsername());
 
         Map<String, String> authParameters = Map.of(
@@ -48,17 +49,16 @@ public class CognitoAuthHandler implements AuthHandler {
         try {
             cognitoResponse = cognitoIdentityProviderClient.adminInitiateAuth(request);
         } catch (NotAuthorizedException notAuthorizedException) {
-//            throw new UnauthorizedException();
-            throw new RuntimeException();
+            throw new UnauthorizedException("Not authorized to perform operation.");
         }
 
         String accessToken = cognitoResponse.authenticationResult().accessToken();
 
         if (accessToken == null || accessToken.isBlank()) {
-            // potentially handle
+            throw new UnauthorizedException();
         }
 
-        InitiateAuthResponse response = InitiateAuthResponse.builder()
+        AuthenticateResponse response = AuthenticateResponse.builder()
                 .accessToken(accessToken)
                 .build();
 

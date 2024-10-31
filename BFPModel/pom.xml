@@ -34,7 +34,7 @@
                             <modelPackage>com.bfp.model</modelPackage>
                             <generatorName>java</generatorName>
                             <generateModels>true</generateModels>
-                            <generateApis>true</generateApis>
+                            <generateApis>false</generateApis>
                             <generateModelTests>false</generateModelTests>
                             <generateApiTests>false</generateApiTests>
                             <configOptions>

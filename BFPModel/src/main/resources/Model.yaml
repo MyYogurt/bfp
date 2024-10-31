@@ -4,7 +4,7 @@ info:
   version: 1.0.0
 paths:
   /initiateAuth:
-    get:
+    post:
       summary: Initiate auth and get credentials
       operationId: initiateAuth
       requestBody:
@@ -12,20 +12,66 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InitiateAuthRequest'
+              $ref: '#/components/schemas/AuthenticateRequest'
       responses:
         200:
           description: Successfully authenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InitiateAuthResponse'
-        400:
-          $ref: '#/components/responses/Unauthorized'
+                $ref: '#/components/schemas/AuthenticateResponse'
+  /file:
+    post:
+      summary: Upload a file
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        200:
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateFileResponse'
+  /file/{id}:
+    get:
+      summary: Get a file
+      operationId: getFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Successfully retrieved file
+          content:
+            multipart/form-data:
+              schema:
+                type: object
+                properties:
+                  file:
+                    type: string
+                    format: binary
+              encoding:
+                file:
+                  contentType: application/octet-stream
 
 components:
   schemas:
-    InitiateAuthRequest:
+    AuthenticateRequest:
       type: object
       required:
         - username
@@ -38,11 +84,19 @@ components:
         password:
           type: string
           minLength: 1
-    InitiateAuthResponse:
+    AuthenticateResponse:
       type: object
       required:
         - accessToken
       additionalProperties: false
       properties:
         accessToken:
+          type: string
+    CreateFileResponse:
+      type: object
+      required:
+        - id
+      additionalProperties: false
+      properties:
+        id:
           type: string

@@ -1,4 +1,4 @@
-package com.bfp.exceptions;
+package com.bfp.model.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,38 +1,35 @@
-package com.bfp.auth.config;
+package com.bfp.service;
 
 import com.bfp.auth.AuthHandler;
 import com.bfp.auth.cognito.CognitoAuthHandler;
 import com.bfp.auth.cognito.CognitoUserPoolClientSecretHashProvider;
-import com.bfp.auth.cognito.DummyAuthHandler;
 import com.bfp.auth.cognito.SecretsManagerHashProvider;
-import jakarta.validation.constraints.NotNull;
+import com.bfp.filemanagement.FileHandler;
+import com.bfp.filemanagement.dao.FileDAO;
+import com.bfp.filemanagement.dao.PostgresFileDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
-@PropertySource("classpath:server.properties")
+//@PropertySource("classpath:application.yaml")
 @Configuration
-public class AuthHandlerConfig {
+public class Config {
     @Value("${cognito.userPoolClientId}")
     private String userPoolClientId;
 
     @Value("${cognito.userPoolId}")
-    @NotNull
     private String userPoolId;
 
-//    @Bean
-//    @Autowired
-//    public AuthHandler getAuthHandler(CognitoIdentityProviderClient cognitoIdentityProviderClient, CognitoUserPoolClientSecretHashProvider cognitoUserPoolClientSecretHashProvider) {
-//        return new CognitoAuthHandler(cognitoUserPoolClientSecretHashProvider, cognitoIdentityProviderClient, userPoolClientId, userPoolId);
-//    }
-
     @Bean
-    public AuthHandler getAuthHandler() {
-        return new DummyAuthHandler();
+    @Autowired
+    public AuthHandler getAuthHandler(CognitoIdentityProviderClient cognitoIdentityProviderClient,
+                                      CognitoUserPoolClientSecretHashProvider cognitoUserPoolClientSecretHashProvider) {
+        return new CognitoAuthHandler(cognitoUserPoolClientSecretHashProvider, cognitoIdentityProviderClient,
+                userPoolClientId, userPoolId);
     }
 
     @Bean
@@ -49,5 +46,21 @@ public class AuthHandlerConfig {
     @Autowired
     public CognitoUserPoolClientSecretHashProvider getCognitoUserPoolClientSecretHashProvider(SecretsManagerClient secretsManagerClient) {
         return new SecretsManagerHashProvider(secretsManagerClient);
+    }
+
+    @Bean
+    public S3Client getS3Client() {
+        return S3Client.builder().build();
+    }
+
+    @Bean
+    public FileDAO getFileDAO() {
+        return new PostgresFileDAO();
+    }
+
+    @Bean
+    @Autowired
+    public FileHandler getFileHandler(FileDAO fileDAO, S3Client s3Client) {
+        return new FileHandler(fileDAO, s3Client);
     }
 }
