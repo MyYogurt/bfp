@@ -6,11 +6,10 @@ phases:
       nodejs: 18.x
       java: corretto21
     commands:
-      - echo Installing Maven
-      - yum install -y maven
       - echo Installing CDK CLI
       - npm install aws-cdk -g
       - cd BFPCDK
+      - cdk bootstrap
   build:
     commands:
       - echo Deploying CDK
