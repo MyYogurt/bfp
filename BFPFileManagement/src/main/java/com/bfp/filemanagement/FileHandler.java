@@ -7,7 +7,6 @@ import com.bfp.model.CreateFileResponse;
 import com.bfp.model.exceptions.InvalidParameterException;
 import com.bfp.model.exceptions.ResourceNotFoundException;
 import com.bfp.model.exceptions.UnauthorizedException;
-import lombok.NonNull;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -17,12 +16,12 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +29,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class FileHandler {
+    private static final String BUCKET_NAME = "bfpfilebucket";
+
     private final FileDAO fileDAO;
     private final S3Client s3Client;
 
@@ -49,22 +50,22 @@ public class FileHandler {
         UUID fileId = UUID.randomUUID();
         String filename = uploadFile.getOriginalFilename();
         Instant createdAt = Instant.now();
-        String fileLocation = uploadFileToS3(uploadFile.getInputStream(), uploadFile.getSize(), "bfpfilebucket", fileId.toString());
+        String fileLocation = uploadFileToS3(uploadFile.getInputStream(), uploadFile.getSize(), BUCKET_NAME, fileId.toString());
 
         FileDO fileDO = FileDO.builder()
                 .id(fileId)
                 .ownerId(ownerId)
                 .fileLocation(fileLocation)
                 .fileName(filename)
-                .fileSize(123L)
+                .fileSize(uploadFile.getSize())
                 .createdAt(createdAt)
                 .updatedAt(createdAt)
                 .build();
 
-        fileDO = fileDAO.saveFile(fileDO);
+        fileDAO.saveFile(fileDO);
 
         return CreateFileResponse.builder()
-                .id(fileDO.toString())
+                .id(fileId.toString())
                 .build();
     }
 
@@ -82,11 +83,10 @@ public class FileHandler {
             throw new UnauthorizedException("You are not authorized to access this file.");
         }
 
-        System.out.println(file);
         return file;
     }
 
-    public FileDO updateFile(String fileId, String fileLocation) throws IOException {
+    public FileDO updateFile(String fileId, MultipartFile newFile) throws IOException {
         Optional<FileDO> file =  fileDAO.getFile(UUID.fromString(fileId));
 
         if (file.isEmpty()) {
@@ -97,13 +97,29 @@ public class FileHandler {
 
         verifyFileOwner(fileDO);
 
-        fileDO.setFileLocation(fileLocation);
+        uploadFileToS3(newFile.getInputStream(), newFile.getSize(), BUCKET_NAME, fileId);
 
-        setUpdatedAtToCurrentInstant(fileDO);
+        updateFileDO(fileDO, newFile);
 
-        fileDO = fileDAO.saveFile(fileDO);
+        fileDAO.updateFile(fileDO);
 
         return fileDO;
+    }
+
+    public void deleteFile(String fileId) {
+        Optional<FileDO> file =  fileDAO.getFile(UUID.fromString(fileId));
+
+        if (file.isEmpty()) {
+            throw new ResourceNotFoundException();
+        }
+
+        FileDO fileDO = file.get();
+
+        verifyFileOwner(fileDO);
+
+        deleteFileFromS3(BUCKET_NAME, fileDO.getId().toString());
+
+        fileDAO.deleteFile(fileDO.getId());
     }
 
     private String uploadFileToS3(InputStream fileInputStream, long contentLength, String bucketName, String filename) {
@@ -136,14 +152,22 @@ public class FileHandler {
         return completeMultipartUploadResponse.location();
     }
 
-    private void setCreatedAtToCurrentInstant(@NonNull final FileDO fileDO) {
-        Instant now = Instant.now();
-        fileDO.setCreatedAt(now);
+    private void deleteFileFromS3(String bucketName, String filename) {
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(filename)
+                .build());
     }
 
-    private void setUpdatedAtToCurrentInstant(@NonNull final FileDO fileDO) {
-        Instant now = Instant.now();
-        fileDO.setUpdatedAt(now);
+    public List<FileDO> listFiles() {
+        String ownerId = CommonRequestHelper.getUserId();
+        return fileDAO.getAllFilesByOwnerId(ownerId);
+    }
+
+    private void updateFileDO(FileDO fileDO, MultipartFile newFile) {
+        fileDO.setFileName(newFile.getOriginalFilename());
+        fileDO.setFileSize(newFile.getSize());
+        fileDO.setUpdatedAt(Instant.now());
     }
 
     private void verifyFileOwner(FileDO fileDO) {

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
 @ComponentScan(basePackages = "com.bfp")
-@EnableJpaRepositories(basePackages = "com.bfp.filemanagement.dao")  // Adjust package name
+@EnableJpaRepositories(basePackages = "com.bfp.filemanagement.dao")
 @EntityScan(basePackages = "com.bfp.filemanagement.dao")
 public class BasicFilePermissionsApplication {
     public static void main(String[] args) {

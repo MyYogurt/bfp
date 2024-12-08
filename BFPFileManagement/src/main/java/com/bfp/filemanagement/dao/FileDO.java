@@ -22,7 +22,6 @@ import java.util.UUID;
 @Table(name = "file_table", schema = "bfp")
 public class FileDO {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private UUID id;
     @Column(name = "owner_id")
     private String ownerId;
