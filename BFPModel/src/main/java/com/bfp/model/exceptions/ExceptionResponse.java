@@ -1,4 +1,4 @@
-package com.bfp.exceptions;
+package com.bfp.model.exceptions;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Data;

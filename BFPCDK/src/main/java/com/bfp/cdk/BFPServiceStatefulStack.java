@@ -3,6 +3,8 @@ package com.bfp.cdk;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apprunner.alpha.AutoScalingConfiguration;
 import software.amazon.awscdk.services.apprunner.alpha.Cpu;
 import software.amazon.awscdk.services.apprunner.alpha.EcrProps;
@@ -11,13 +13,9 @@ import software.amazon.awscdk.services.apprunner.alpha.HttpHealthCheckOptions;
 import software.amazon.awscdk.services.apprunner.alpha.ImageConfiguration;
 import software.amazon.awscdk.services.apprunner.alpha.Memory;
 import software.amazon.awscdk.services.apprunner.alpha.Service;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apprunner.alpha.Source;
 import software.amazon.awscdk.services.cognito.AccountRecovery;
 import software.amazon.awscdk.services.cognito.AuthFlow;
-import software.amazon.awscdk.services.cognito.IUserPool;
-import software.amazon.awscdk.services.cognito.IUserPoolClient;
 import software.amazon.awscdk.services.cognito.Mfa;
 import software.amazon.awscdk.services.cognito.PasswordPolicy;
 import software.amazon.awscdk.services.cognito.SignInAliases;
@@ -28,9 +26,18 @@ import software.amazon.awscdk.services.cognito.UserPoolClient;
 import software.amazon.awscdk.services.cognito.UserPoolEmail;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.Repository;
-import software.amazon.awscdk.services.secretsmanager.ISecret;
+import software.amazon.awscdk.services.iam.Effect;
+import software.amazon.awscdk.services.iam.PolicyDocument;
+import software.amazon.awscdk.services.iam.PolicyStatement;
+import software.amazon.awscdk.services.iam.Role;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
+import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.constructs.Construct;
+
+import java.util.List;
+import java.util.Map;
 
 public class BFPServiceStatefulStack extends Stack {
     public BFPServiceStatefulStack(final Construct parent, final String id) {
@@ -40,7 +47,9 @@ public class BFPServiceStatefulStack extends Stack {
     public BFPServiceStatefulStack(final Construct parent, final String id, final StackProps props) {
         super(parent, id, props);
 
-        IUserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
+        IBucket fileBucket = Bucket.fromBucketName(this, "bfpfilebucket", "bfpfilebucket");
+
+        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
                 .userPoolName("BFPUserPool")
                 .passwordPolicy(PasswordPolicy.builder()
                         .minLength(8)
@@ -66,7 +75,7 @@ public class BFPServiceStatefulStack extends Stack {
                         .build())
                 .build();
 
-        IUserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
+        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
                 .userPoolClientName("BFPUserPoolClient")
                 .userPool(userPool)
                 .authFlows(AuthFlow.builder()
@@ -76,10 +85,35 @@ public class BFPServiceStatefulStack extends Stack {
                 .generateSecret(true)
                 .build();
 
-        ISecret secret = Secret.Builder.create(this, "BFPSecret")
+        Secret secret = Secret.Builder.create(this, "BFPSecret")
                 .secretName("BFPUserPoolClientSecret")
                 .secretName(userPoolClient.getUserPoolClientId())
                 .secretStringValue(userPoolClient.getUserPoolClientSecret())
+                .build();
+
+        PolicyDocument policyDocument = PolicyDocument.Builder.create()
+                .statements(List.of(
+                        PolicyStatement.Builder.create()
+                                .effect(Effect.ALLOW)
+                                .actions(List.of(
+                                        "cognito-idp:AdminInitiateAuth",
+                                        "s3:PutObject",
+                                        "cognito-idp:AdminUserGlobalSignOut",
+                                        "secretsmanager:GetSecretValue"
+                                ))
+                                .resources(List.of(
+                                        userPool.getUserPoolArn(),
+                                        secret.getSecretArn(),
+                                        fileBucket.getBucketArn()
+                                ))
+                                .build())
+                )
+                .build();
+
+        Role instanceRole = Role.Builder.create(this, "BFPInstanceRole")
+                .roleName("BFPInstanceRole")
+                .assumedBy(new ServicePrincipal("tasks.apprunner.amazonaws.com"))
+                .inlinePolicies(Map.of("BFPInstanceRolePolicy", policyDocument))
                 .build();
 
         IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfprepository");
@@ -90,6 +124,11 @@ public class BFPServiceStatefulStack extends Stack {
                     .repository(repository)
                             .imageConfiguration(ImageConfiguration.builder()
                                     .port(8080)
+                                    .environmentVariables(Map.of(
+                                            "userpoolid", userPool.getUserPoolId(),
+                                            "userpoolclientid", userPoolClient.getUserPoolClientId(),
+                                            "spring_profiles_active", "dev"
+                                    ))
                                     .build())
                         .tagOrDigest("latest")
                     .build()))
@@ -108,6 +147,7 @@ public class BFPServiceStatefulStack extends Stack {
                                 .unhealthyThreshold(5)
                                 .healthyThreshold(1)
                         .build()))
+                .instanceRole(instanceRole)
                 .build();
 
         new CfnOutput(this, "BFPServiceURL", CfnOutputProps.builder()

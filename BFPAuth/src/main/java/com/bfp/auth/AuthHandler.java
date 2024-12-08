@@ -1,8 +1,8 @@
 package com.bfp.auth;
 
-import com.bfp.auth.model.InitiateAuthRequest;
-import com.bfp.auth.model.InitiateAuthResponse;
+import com.bfp.model.AuthenticateRequest;
+import com.bfp.model.AuthenticateResponse;
 
 public interface AuthHandler {
-    InitiateAuthResponse authenticate(InitiateAuthRequest initiateAuthRequest);
+    AuthenticateResponse authenticate(AuthenticateRequest AuthenticateRequest);
 }

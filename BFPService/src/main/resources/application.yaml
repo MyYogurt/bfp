@@ -1,0 +1,25 @@
+cognito:
+  userPoolClientId: ${userpoolclientid}
+  userPoolId: ${userpoolid}
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/${userpoolid}
+  datasource:
+    driverClassName: org.postgresql.Driver
+    url: jdbc:postgresql://${postgreshost}:5432/postgres?currentSchema=bfp
+    username: postgres
+    password: ${postgrespassword}
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: bfp
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+      schema_update:
+        default_schema: bfp

@@ -1,23 +1,16 @@
 package com.bfp.service;
 
 import com.bfp.auth.AuthHandler;
-import com.bfp.auth.model.InitiateAuthRequest;
-import com.bfp.auth.model.InitiateAuthResponse;
-import com.bfp.exceptions.InvalidParameterException;
-import com.bfp.exceptions.UnauthorizedException;
+import com.bfp.common.CommonRequestHelper;
+import com.bfp.model.AuthenticateRequest;
+import com.bfp.model.AuthenticateResponse;
+import com.bfp.model.exceptions.InvalidParameterException;
+import com.bfp.model.exceptions.UnauthorizedException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 public class AuthService {
@@ -30,9 +23,14 @@ public class AuthService {
     }
 
     @GetMapping("/authenticate")
-    public InitiateAuthResponse authenticate(@Valid @RequestBody final InitiateAuthRequest authenticateRequest) {
-        InitiateAuthResponse response = authHandler.authenticate(authenticateRequest);
+    public AuthenticateResponse authenticate(@Valid @RequestBody final AuthenticateRequest authenticateRequest) {
+        AuthenticateResponse response = authHandler.authenticate(authenticateRequest);
         return response;
+    }
+
+    @GetMapping("/hello")
+    public String hello() {
+        return CommonRequestHelper.getUserId();
     }
 
     @GetMapping("/exception")
