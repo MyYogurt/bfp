@@ -7,7 +7,7 @@ phases:
     commands:
       - echo Installing CDK CLI
       - npm install aws-cdk -g
-  deploy:
+  build:
     commands:
       - echo Deploying CDK
       - cdk deploy --all -y
