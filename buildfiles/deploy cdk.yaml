@@ -4,6 +4,7 @@ phases:
   install:
     runtime-versions:
       nodejs: 18.x
+      java: corretto21
     commands:
       - echo Installing CDK CLI
       - npm install aws-cdk -g
