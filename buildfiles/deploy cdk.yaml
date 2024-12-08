@@ -1,0 +1,13 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18.x
+    commands:
+      - echo Installing CDK CLI
+      - npm install aws-cdk -g
+  deploy:
+    commands:
+      - echo Deploying CDK
+      - cdk deploy --all -y
