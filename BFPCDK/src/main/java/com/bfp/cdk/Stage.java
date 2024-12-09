@@ -25,6 +25,8 @@ public enum Stage {
                 return stage;
             }
         }
-        throw new IllegalArgumentException("No constant with text " + text + " found");
+
+        // Need a default for cdk bootstrap
+        return Gamma;
     }
 }
