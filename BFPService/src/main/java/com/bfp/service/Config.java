@@ -24,6 +24,9 @@ public class Config {
     @Value("${cognito.userPoolId}")
     private String userPoolId;
 
+    @Value("${fileBucketName}")
+    private String fileBucketName;
+
     @Bean
     @Autowired
     public AuthHandler getAuthHandler(CognitoIdentityProviderClient cognitoIdentityProviderClient,
@@ -61,6 +64,6 @@ public class Config {
     @Bean
     @Autowired
     public FileHandler getFileHandler(FileDAO fileDAO, S3Client s3Client) {
-        return new FileHandler(fileDAO, s3Client);
+        return new FileHandler(fileDAO, s3Client, fileBucketName);
     }
 }

@@ -29,14 +29,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class FileHandler {
-    private static final String BUCKET_NAME = "bfpfilebucket";
-
     private final FileDAO fileDAO;
     private final S3Client s3Client;
 
-    public FileHandler(FileDAO fileDAO, S3Client s3Client) {
+    private final String bucketName;
+
+    public FileHandler(FileDAO fileDAO, S3Client s3Client, String bucketName) {
         this.fileDAO = fileDAO;
         this.s3Client = s3Client;
+        this.bucketName = bucketName;
     }
 
     public CreateFileResponse createFile(MultipartFile uploadFile) throws IOException {
@@ -50,7 +51,7 @@ public class FileHandler {
         UUID fileId = UUID.randomUUID();
         String filename = uploadFile.getOriginalFilename();
         Instant createdAt = Instant.now();
-        String fileLocation = uploadFileToS3(uploadFile.getInputStream(), uploadFile.getSize(), BUCKET_NAME, fileId.toString());
+        String fileLocation = uploadFileToS3(uploadFile.getInputStream(), uploadFile.getSize(), bucketName, fileId.toString());
 
         FileDO fileDO = FileDO.builder()
                 .id(fileId)
@@ -97,7 +98,7 @@ public class FileHandler {
 
         verifyFileOwner(fileDO);
 
-        uploadFileToS3(newFile.getInputStream(), newFile.getSize(), BUCKET_NAME, fileId);
+        uploadFileToS3(newFile.getInputStream(), newFile.getSize(), bucketName, fileId);
 
         updateFileDO(fileDO, newFile);
 
@@ -117,7 +118,7 @@ public class FileHandler {
 
         verifyFileOwner(fileDO);
 
-        deleteFileFromS3(BUCKET_NAME, fileDO.getId().toString());
+        deleteFileFromS3(bucketName, fileDO.getId().toString());
 
         fileDAO.deleteFile(fileDO.getId());
     }

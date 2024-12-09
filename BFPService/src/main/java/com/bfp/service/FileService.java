@@ -4,6 +4,7 @@ import com.bfp.filemanagement.FileHandler;
 import com.bfp.filemanagement.dao.FileDO;
 import com.bfp.model.CreateFileResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 

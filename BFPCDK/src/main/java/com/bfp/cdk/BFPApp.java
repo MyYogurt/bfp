@@ -5,8 +5,9 @@ import software.amazon.awscdk.App;
 public class BFPApp {
     public static void main(String[] args) {
         App app = new App();
-        new BFPServiceStatefulStack(app, "BFPService");
-//        new DevOpsStack(app, "BFPDevOps");
+        String stage = (String) app.getNode().tryGetContext("stage");
+        Stage stageEnum = Stage.fromString(stage);
+        BFPServiceStack serviceStack = new BFPServiceStack(app, "BFPService", stageEnum.toString());
         app.synth();
     }
 }

@@ -3,7 +3,6 @@ package com.bfp.cdk;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
-import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apprunner.alpha.AutoScalingConfiguration;
 import software.amazon.awscdk.services.apprunner.alpha.Cpu;
@@ -32,25 +31,24 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.s3.Bucket;
-import software.amazon.awscdk.services.s3.IBucket;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
 
-public class BFPServiceStatefulStack extends Stack {
-    public BFPServiceStatefulStack(final Construct parent, final String id) {
-        this(parent, id, null);
+public class BFPServiceStack extends StagedStack {
+    public BFPServiceStack(final Construct parent, final String id, String stage) {
+        this(parent, id, null, stage);
     }
 
-    public BFPServiceStatefulStack(final Construct parent, final String id, final StackProps props) {
-        super(parent, id, props);
+    public BFPServiceStack(final Construct parent, final String id, final StackProps props, String stage) {
+        super(parent, id, props, stage);
 
-        IBucket fileBucket = Bucket.fromBucketName(this, "bfpfilebucket", "bfpfilebucket");
+        Bucket fileBucket = new Bucket(this, "bfpfilebucket-" + getStage());
 
-        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
-                .userPoolName("BFPUserPool")
+        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool-" + getStage())
+                .userPoolName("BFPUserPool-" + getStage())
                 .passwordPolicy(PasswordPolicy.builder()
                         .minLength(8)
                         .requireLowercase(false)
@@ -75,8 +73,7 @@ public class BFPServiceStatefulStack extends Stack {
                         .build())
                 .build();
 
-        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
-                .userPoolClientName("BFPUserPoolClient")
+        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient-" + getStage())
                 .userPool(userPool)
                 .authFlows(AuthFlow.builder()
                         .userPassword(true)
@@ -85,8 +82,8 @@ public class BFPServiceStatefulStack extends Stack {
                 .generateSecret(true)
                 .build();
 
-        Secret secret = Secret.Builder.create(this, "BFPSecret")
-                .secretName("BFPUserPoolClientSecret")
+        Secret secret = Secret.Builder.create(this, "BFPSecret-" + getStage())
+                .secretName("BFPUserPoolClientSecret-" + getStage())
                 .secretName(userPoolClient.getUserPoolClientId())
                 .secretStringValue(userPoolClient.getUserPoolClientSecret())
                 .build();
@@ -110,16 +107,14 @@ public class BFPServiceStatefulStack extends Stack {
                 )
                 .build();
 
-        Role instanceRole = Role.Builder.create(this, "BFPInstanceRole")
-                .roleName("BFPInstanceRole")
+        Role instanceRole = Role.Builder.create(this, "BFPInstanceRole-" + getStage())
                 .assumedBy(new ServicePrincipal("tasks.apprunner.amazonaws.com"))
                 .inlinePolicies(Map.of("BFPInstanceRolePolicy", policyDocument))
                 .build();
 
-        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfprepository");
+        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository-" + getStage(), "bfpservicerepository/" + getStage().toLowerCase());
 
-        Service bfpservice = Service.Builder.create(this, "BFPService")
-                .serviceName("BFPService")
+        Service bfpservice = Service.Builder.create(this, "BFPService-" + getStage())
                 .source(Source.fromEcr(EcrProps.builder()
                     .repository(repository)
                             .imageConfiguration(ImageConfiguration.builder()
@@ -127,7 +122,8 @@ public class BFPServiceStatefulStack extends Stack {
                                     .environmentVariables(Map.of(
                                             "userpoolid", userPool.getUserPoolId(),
                                             "userpoolclientid", userPoolClient.getUserPoolClientId(),
-                                            "spring_profiles_active", "dev"
+                                            "spring_profiles_active", "dev",
+                                            "fileBucketName", fileBucket.getBucketName()
                                     ))
                                     .build())
                         .tagOrDigest("latest")
@@ -150,7 +146,7 @@ public class BFPServiceStatefulStack extends Stack {
                 .instanceRole(instanceRole)
                 .build();
 
-        new CfnOutput(this, "BFPServiceURL", CfnOutputProps.builder()
+        new CfnOutput(this, "BFPServiceURL-" + getStage(), CfnOutputProps.builder()
                 .value(bfpservice.getServiceUrl())
                 .description("BFPService URL")
                 .build());

@@ -8,8 +8,6 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws --version
-      - REPOSITORY_URL=891377256793.dkr.ecr.us-east-1.amazonaws.com
-      - REPOSITORY_NAME=bfprepository
       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REPOSITORY_URL
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
@@ -19,7 +17,7 @@ phases:
       - mvn install --no-transfer-progress
       - echo Building the Docker image...
       - cd BFPService
-      - docker build -t $REPOSITORY_NAME .
+      - docker build -t $REPOSITORY_NAME . --provenance=false
       - docker tag $REPOSITORY_NAME:latest $REPOSITORY_URL/$REPOSITORY_NAME:latest
   post_build:
     commands:
