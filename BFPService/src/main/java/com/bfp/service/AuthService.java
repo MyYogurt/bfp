@@ -32,14 +32,4 @@ public class AuthService {
     public String hello() {
         return CommonRequestHelper.getUserId();
     }
-
-    @GetMapping("/exception")
-    public void exception() {
-        throw new InvalidParameterException("This is a test exception");
-    }
-
-    @GetMapping("/unauthorized")
-    public void unauthorized() {
-        throw new UnauthorizedException("Unauthorized!");
-    }
 }

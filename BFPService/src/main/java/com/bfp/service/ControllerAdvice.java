@@ -62,6 +62,4 @@ public class ControllerAdvice {
                 .message(invalidParameterException.getMessage())
                 .toResponseEntity(HttpStatus.BAD_REQUEST);
     }
-
-
 }
