@@ -12,5 +12,5 @@ phases:
       - cdk bootstrap
   build:
     commands:
-      - echo Deploying CDK
+      - echo Deploying CDK in stage $stage
       - cdk deploy --all --require-approval never --context stage=$stage

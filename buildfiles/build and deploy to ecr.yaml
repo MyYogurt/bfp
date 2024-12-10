@@ -6,11 +6,11 @@ phases:
       java: corretto21
   pre_build:
     commands:
+      - echo $REPOSITORY_URL
+      - echo $REPOSITORY_NAME
       - echo Logging in to Amazon ECR...
       - aws --version
       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REPOSITORY_URL
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=${COMMIT_HASH:=latest}
   build:
     commands:
       - echo Building BFP
@@ -24,6 +24,6 @@ phases:
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URL/$REPOSITORY_NAME:latest
       - echo Writing image definitions file...
-      - printf '[{"name":"hello-world","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - printf '[{"name":"hello-world","imageUri":"%s"}]' $REPOSITORY_URL:$IMAGE_TAG > imagedefinitions.json
 artifacts:
   files: imagedefinitions.json
