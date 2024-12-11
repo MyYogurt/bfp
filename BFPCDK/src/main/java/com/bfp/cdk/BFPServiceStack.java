@@ -146,6 +146,16 @@ public class BFPServiceStack extends StagedStack {
                 .instanceRole(instanceRole)
                 .build();
 
+        new CfnOutput(this, "BFPUserPool-" + getStage(), CfnOutputProps.builder()
+                .value(userPool.getUserPoolId())
+                .description("UserPoolId")
+                .build());
+
+        new CfnOutput(this, "BFPUserPoolClient-" + getStage(), CfnOutputProps.builder()
+                .value(userPoolClient.getUserPoolClientId())
+                .description("UserPoolClientId")
+                .build());
+
         new CfnOutput(this, "BFPServiceURL-" + getStage(), CfnOutputProps.builder()
                 .value(bfpservice.getServiceUrl())
                 .description("BFPService URL")
