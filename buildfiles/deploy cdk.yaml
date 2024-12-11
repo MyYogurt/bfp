@@ -9,7 +9,7 @@ phases:
       - echo Installing CDK CLI
       - npm install aws-cdk -g
       - cd BFPCDK
-      - cdk bootstrap
+#      - cdk bootstrap
   build:
     commands:
       - echo Deploying CDK in stage $stage
