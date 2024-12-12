@@ -90,13 +90,13 @@ public class BFPServiceStack extends StagedStack {
                 .secretStringValue(userPoolClient.getUserPoolClientSecret())
                 .build();
 
-        DatabaseCluster postGresCluster = DatabaseCluster.Builder.create(this, "BFPDatabaseCluster-" + getStage())
-                .engine(
-
-                )
-                .defaultDatabaseName("bfp")
-                .storageEncrypted(true)
-                .build();
+//        DatabaseCluster postGresCluster = DatabaseCluster.Builder.create(this, "BFPDatabaseCluster-" + getStage())
+//                .engine(
+//
+//                )
+//                .defaultDatabaseName("bfp")
+//                .storageEncrypted(true)
+//                .build();
 
         PolicyDocument policyDocument = PolicyDocument.Builder.create()
                 .statements(List.of(
