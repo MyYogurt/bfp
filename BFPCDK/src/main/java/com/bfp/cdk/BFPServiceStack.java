@@ -30,6 +30,8 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
+import software.amazon.awscdk.services.rds.DatabaseCluster;
+import software.amazon.awscdk.services.rds.DatabaseClusterEngine;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.constructs.Construct;
@@ -86,6 +88,14 @@ public class BFPServiceStack extends StagedStack {
                 .secretName("BFPUserPoolClientSecret-" + getStage())
                 .secretName(userPoolClient.getUserPoolClientId())
                 .secretStringValue(userPoolClient.getUserPoolClientSecret())
+                .build();
+
+        DatabaseCluster postGresCluster = DatabaseCluster.Builder.create(this, "BFPDatabaseCluster-" + getStage())
+                .engine(
+
+                )
+                .defaultDatabaseName("bfp")
+                .storageEncrypted(true)
                 .build();
 
         PolicyDocument policyDocument = PolicyDocument.Builder.create()
@@ -146,17 +156,17 @@ public class BFPServiceStack extends StagedStack {
                 .instanceRole(instanceRole)
                 .build();
 
-        new CfnOutput(this, "BFPUserPool-" + getStage(), CfnOutputProps.builder()
+        new CfnOutput(this, "BFPUserPool-" + getStage() + " output", CfnOutputProps.builder()
                 .value(userPool.getUserPoolId())
                 .description("UserPoolId")
                 .build());
 
-        new CfnOutput(this, "BFPUserPoolClient-" + getStage(), CfnOutputProps.builder()
+        new CfnOutput(this, "BFPUserPoolClient-" + getStage() + " output", CfnOutputProps.builder()
                 .value(userPoolClient.getUserPoolClientId())
                 .description("UserPoolClientId")
                 .build());
 
-        new CfnOutput(this, "BFPServiceURL-" + getStage(), CfnOutputProps.builder()
+        new CfnOutput(this, "BFPServiceURL-" + getStage() + " output", CfnOutputProps.builder()
                 .value(bfpservice.getServiceUrl())
                 .description("BFPService URL")
                 .build());
