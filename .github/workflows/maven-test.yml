@@ -2,9 +2,9 @@ name: Maven Multi-Module CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: '*'
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -18,8 +18,8 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        java-version: '21'  # Adjust this to your project's Java version
-        distribution: 'corretto'
+        java-version: '17'  # Adjust this to your project's Java version
+        distribution: 'temurin'
         cache: maven
 
     - name: Get changed modules
@@ -33,17 +33,37 @@ jobs:
           CHANGED_FILES=$(git diff --name-only HEAD^1 HEAD)
         fi
         
-        # Find all pom.xml files in changed directories
-        CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -o "^[^/]*/[^/]*/\?" | sort -u | sed 's:/$::' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+        # Initialize empty array for maven modules
+        MAVEN_MODULES=()
         
-        if [ -z "$CHANGED_MODULES" ]; then
-          # If no modules changed, build the root project
-          echo "modules=." >> $GITHUB_OUTPUT
+        # For each changed file, check if its directory or parent directories contain pom.xml
+        while IFS= read -r file; do
+          dir=$(dirname "$file")
+          while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+            if [ -f "$dir/pom.xml" ]; then
+              MAVEN_MODULES+=("$dir")
+              break
+            fi
+            dir=$(dirname "$dir")
+          done
+        done <<< "$CHANGED_FILES"
+        
+        # Remove duplicates and create comma-separated list
+        UNIQUE_MODULES=$(printf "%s\n" "${MAVEN_MODULES[@]}" | sort -u | tr '\n' ',' | sed 's/,$//')
+        
+        if [ -z "$UNIQUE_MODULES" ]; then
+          # If no Maven modules changed, build the root project if it has a pom.xml
+          if [ -f "pom.xml" ]; then
+            echo "modules=." >> $GITHUB_OUTPUT
+          else
+            echo "modules=" >> $GITHUB_OUTPUT
+          fi
         else
-          echo "modules=$CHANGED_MODULES" >> $GITHUB_OUTPUT
+          echo "modules=$UNIQUE_MODULES" >> $GITHUB_OUTPUT
         fi
 
     - name: Build and verify changed modules and dependents
+      if: steps.changed-modules.outputs.modules != ''
       run: |
         # Convert comma-separated list to space-separated
         MODULES=$(echo ${{ steps.changed-modules.outputs.modules }} | tr ',' ' ')
