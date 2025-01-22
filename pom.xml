@@ -27,6 +27,7 @@
         <module>BFPModel</module>
 		<module>BFPCDK</module>
 		<module>BFPFileManagement</module>
+		<module>BFPCommon</module>
 	</modules>
 	<scm>
 		<connection/>
