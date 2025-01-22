@@ -1,4 +1,4 @@
-package com.bfp.service;
+package com.bfp.service.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +14,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz ->authz
                         .requestMatchers("/authenticate", "/actuator/health")
                             .permitAll()
-                            .anyRequest()
+                        .anyRequest()
                             .authenticated()
                 )
                 .oauth2ResourceServer(

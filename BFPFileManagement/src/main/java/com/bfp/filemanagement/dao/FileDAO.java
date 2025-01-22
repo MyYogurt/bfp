@@ -1,15 +1,12 @@
 package com.bfp.filemanagement.dao;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 public interface FileDAO {
-    Optional<FileDO> getFile(UUID fileId);
-    FileDO saveFile(FileDO fileDO);
-    List<FileDO> getAllFilesByOwnerId(String ownerId);
-    void deleteFile(UUID fileId);
-    void deleteFile(FileDO fileDO);
-    void updateFile(FileDO fileDO);
-    void deleteAllFilesByOwnerId(String ownerId);
+    byte[] getFile(String fileId);
+    String createFile(String fileId, MultipartFile file) throws IOException;
+    void deleteFile(String fileId);
+    void updateFile(String fileId, MultipartFile file) throws IOException;
 }

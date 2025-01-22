@@ -6,7 +6,9 @@ import com.bfp.auth.cognito.CognitoUserPoolClientSecretHashProvider;
 import com.bfp.auth.cognito.SecretsManagerHashProvider;
 import com.bfp.filemanagement.FileHandler;
 import com.bfp.filemanagement.dao.FileDAO;
-import com.bfp.filemanagement.dao.PostgresFileDAO;
+import com.bfp.filemanagement.dao.FileMetadataDAO;
+import com.bfp.filemanagement.dao.PostgresFileMetadataDAO;
+import com.bfp.filemanagement.dao.S3FileDAO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -57,13 +59,24 @@ public class Config {
     }
 
     @Bean
-    public FileDAO getFileDAO() {
-        return new PostgresFileDAO();
+    public FileMetadataDAO getFileMetadataDAO() {
+        return new PostgresFileMetadataDAO();
     }
 
     @Bean
     @Autowired
-    public FileHandler getFileHandler(FileDAO fileDAO, S3Client s3Client) {
-        return new FileHandler(fileDAO, s3Client, fileBucketName);
+    public FileDAO getFileDAO(S3Client s3Client) {
+        return new S3FileDAO(s3Client, fileBucketName);
+    }
+
+    @Bean
+    @Autowired
+    public FileHandler getFileHandler(FileMetadataDAO fileMetadataDAO, FileDAO fileDAO) {
+        return new FileHandler(fileMetadataDAO, fileDAO);
+    }
+
+    @Bean
+    public CommonRequestHelper getCommonRequestHelper(CognitoIdentityProviderClient cognitoIdentityProviderClient) {
+        return new CommonRequestHelper();
     }
 }

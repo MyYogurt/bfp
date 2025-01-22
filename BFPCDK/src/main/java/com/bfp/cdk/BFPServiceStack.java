@@ -3,6 +3,7 @@ package com.bfp.cdk;
 import software.amazon.awscdk.CfnOutput;
 import software.amazon.awscdk.CfnOutputProps;
 import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apprunner.alpha.AutoScalingConfiguration;
 import software.amazon.awscdk.services.apprunner.alpha.Cpu;
@@ -13,8 +14,11 @@ import software.amazon.awscdk.services.apprunner.alpha.ImageConfiguration;
 import software.amazon.awscdk.services.apprunner.alpha.Memory;
 import software.amazon.awscdk.services.apprunner.alpha.Service;
 import software.amazon.awscdk.services.apprunner.alpha.Source;
+import software.amazon.awscdk.services.apprunner.alpha.VpcConnector;
+import software.amazon.awscdk.services.apprunner.alpha.VpcConnectorProps;
 import software.amazon.awscdk.services.cognito.AccountRecovery;
 import software.amazon.awscdk.services.cognito.AuthFlow;
+import software.amazon.awscdk.services.cognito.CognitoDomainOptions;
 import software.amazon.awscdk.services.cognito.Mfa;
 import software.amazon.awscdk.services.cognito.PasswordPolicy;
 import software.amazon.awscdk.services.cognito.SignInAliases;
@@ -22,7 +26,15 @@ import software.amazon.awscdk.services.cognito.StandardAttribute;
 import software.amazon.awscdk.services.cognito.StandardAttributes;
 import software.amazon.awscdk.services.cognito.UserPool;
 import software.amazon.awscdk.services.cognito.UserPoolClient;
+import software.amazon.awscdk.services.cognito.UserPoolDomain;
 import software.amazon.awscdk.services.cognito.UserPoolEmail;
+import software.amazon.awscdk.services.ec2.InstanceClass;
+import software.amazon.awscdk.services.ec2.InstanceSize;
+import software.amazon.awscdk.services.ec2.InstanceType;
+import software.amazon.awscdk.services.ec2.Port;
+import software.amazon.awscdk.services.ec2.SecurityGroup;
+import software.amazon.awscdk.services.ec2.SubnetSelection;
+import software.amazon.awscdk.services.ec2.SubnetType;
 import software.amazon.awscdk.services.ecr.IRepository;
 import software.amazon.awscdk.services.ecr.Repository;
 import software.amazon.awscdk.services.iam.Effect;
@@ -30,8 +42,11 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.Role;
 import software.amazon.awscdk.services.iam.ServicePrincipal;
-import software.amazon.awscdk.services.rds.DatabaseCluster;
-import software.amazon.awscdk.services.rds.DatabaseClusterEngine;
+import software.amazon.awscdk.services.rds.DatabaseInstance;
+import software.amazon.awscdk.services.rds.DatabaseInstanceEngine;
+import software.amazon.awscdk.services.rds.PostgresEngineVersion;
+import software.amazon.awscdk.services.rds.PostgresInstanceEngineProps;
+import software.amazon.awscdk.services.rds.SubnetGroup;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.constructs.Construct;
@@ -47,10 +62,12 @@ public class BFPServiceStack extends StagedStack {
     public BFPServiceStack(final Construct parent, final String id, final StackProps props, String stage) {
         super(parent, id, props, stage);
 
-        Bucket fileBucket = new Bucket(this, "bfpfilebucket-" + getStage());
+        VpcStack vpc = new VpcStack(this, "BFPVpcStack", getStage());
 
-        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool-" + getStage())
-                .userPoolName("BFPUserPool-" + getStage())
+        Bucket fileBucket = new Bucket(this, "bfpfilebucket");
+        fileBucket.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
                 .passwordPolicy(PasswordPolicy.builder()
                         .minLength(8)
                         .requireLowercase(false)
@@ -59,7 +76,7 @@ public class BFPServiceStack extends StagedStack {
                         .requireSymbols(false)
                         .build())
                 .accountRecovery(AccountRecovery.EMAIL_ONLY)
-                .deletionProtection(true)
+                .deletionProtection(false)
                 .email(UserPoolEmail.withCognito())
                 .signInAliases(SignInAliases.builder()
                         .username(true)
@@ -75,7 +92,9 @@ public class BFPServiceStack extends StagedStack {
                         .build())
                 .build();
 
-        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient-" + getStage())
+        userPool.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
                 .userPool(userPool)
                 .authFlows(AuthFlow.builder()
                         .userPassword(true)
@@ -84,19 +103,47 @@ public class BFPServiceStack extends StagedStack {
                 .generateSecret(true)
                 .build();
 
-        Secret secret = Secret.Builder.create(this, "BFPSecret-" + getStage())
+        Secret secret = Secret.Builder.create(this, "BFPSecret")
                 .secretName("BFPUserPoolClientSecret-" + getStage())
                 .secretName(userPoolClient.getUserPoolClientId())
                 .secretStringValue(userPoolClient.getUserPoolClientSecret())
                 .build();
 
-//        DatabaseCluster postGresCluster = DatabaseCluster.Builder.create(this, "BFPDatabaseCluster-" + getStage())
-//                .engine(
-//
-//                )
-//                .defaultDatabaseName("bfp")
-//                .storageEncrypted(true)
-//                .build();
+        UserPoolDomain domain = UserPoolDomain.Builder.create(this, "BFPUserPoolDomain")
+                .userPool(userPool)
+                .cognitoDomain(CognitoDomainOptions.builder()
+                        .domainPrefix("bfp-" + getStage())
+                        .build())
+                .build();
+
+        SubnetGroup subnetGroup = SubnetGroup.Builder.create(this, "BFPSubnetGroup")
+                .vpc(vpc.getVpc())
+                .description("BFPSubnetGroup")
+                .vpcSubnets(SubnetSelection.builder()
+                        .subnetType(SubnetType.PRIVATE_WITH_EGRESS)
+                        .build())
+                .build();
+
+        SecurityGroup rdsSecurityGroup = SecurityGroup.Builder.create(this, "BFPDatabaseSecurityGroup")
+                .vpc(vpc.getVpc())
+                .build();
+        rdsSecurityGroup.addIngressRule(vpc.getSecurityGroup(), Port.POSTGRES, "Allow postgres traffic.");
+        rdsSecurityGroup.addEgressRule(vpc.getSecurityGroup(), Port.POSTGRES, "Allow postgres traffic.");
+
+        DatabaseInstance postgresInstance = DatabaseInstance.Builder.create(this, "BFPDatabaseInstance")
+                .engine(DatabaseInstanceEngine.postgres(PostgresInstanceEngineProps.builder()
+                        .version(PostgresEngineVersion.VER_17_2)
+                        .build()))
+                .instanceType(InstanceType.of(InstanceClass.T4G, InstanceSize.MICRO))
+                .vpc(vpc.getVpc())
+                .securityGroups(List.of(rdsSecurityGroup))
+                .subnetGroup(subnetGroup)
+                .enablePerformanceInsights(false)
+                .databaseName("postgres")
+                .backupRetention(Duration.days(0))
+                .autoMinorVersionUpgrade(true)
+                .multiAz(false)
+                .build();
 
         PolicyDocument policyDocument = PolicyDocument.Builder.create()
                 .statements(List.of(
@@ -104,27 +151,52 @@ public class BFPServiceStack extends StagedStack {
                                 .effect(Effect.ALLOW)
                                 .actions(List.of(
                                         "cognito-idp:AdminInitiateAuth",
+                                        "cognito-idp:AdminUserGlobalSignOut"
+                                ))
+                                .resources(List.of(
+                                        userPool.getUserPoolArn()
+                                ))
+                                .build(),
+                        PolicyStatement.Builder.create()
+                                .effect(Effect.ALLOW)
+                                .actions(List.of(
                                         "s3:PutObject",
-                                        "cognito-idp:AdminUserGlobalSignOut",
+                                        "s3:DeleteObject"
+                                ))
+                                .resources(List.of(
+                                        fileBucket.getBucketArn(),
+                                        fileBucket.getBucketArn() + "/*"
+                                ))
+                                .build(),
+                        PolicyStatement.Builder.create()
+                                .effect(Effect.ALLOW)
+                                .actions(List.of(
                                         "secretsmanager:GetSecretValue"
                                 ))
                                 .resources(List.of(
-                                        userPool.getUserPoolArn(),
                                         secret.getSecretArn(),
-                                        fileBucket.getBucketArn()
+                                        postgresInstance.getSecret().getSecretArn()
                                 ))
                                 .build())
                 )
                 .build();
 
-        Role instanceRole = Role.Builder.create(this, "BFPInstanceRole-" + getStage())
+        Role instanceRole = Role.Builder.create(this, "BFPInstanceRole")
                 .assumedBy(new ServicePrincipal("tasks.apprunner.amazonaws.com"))
                 .inlinePolicies(Map.of("BFPInstanceRolePolicy", policyDocument))
                 .build();
 
-        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository-" + getStage(), "bfpservicerepository/" + getStage().toLowerCase());
+        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfpservicerepository/" + getStage().toLowerCase());
 
-        Service bfpservice = Service.Builder.create(this, "BFPService-" + getStage())
+        VpcConnector vpcConnector = new VpcConnector(this, "BFPVpcConnector", VpcConnectorProps.builder()
+                .vpc(vpc.getVpc())
+                .securityGroups(List.of(vpc.getSecurityGroup()))
+                .vpcSubnets(SubnetSelection.builder()
+                        .subnetType(SubnetType.PRIVATE_WITH_EGRESS)
+                        .build())
+                .build());
+
+        Service bfpservice = Service.Builder.create(this, "BFPService")
                 .source(Source.fromEcr(EcrProps.builder()
                     .repository(repository)
                             .imageConfiguration(ImageConfiguration.builder()
@@ -132,8 +204,10 @@ public class BFPServiceStack extends StagedStack {
                                     .environmentVariables(Map.of(
                                             "userpoolid", userPool.getUserPoolId(),
                                             "userpoolclientid", userPoolClient.getUserPoolClientId(),
-                                            "spring_profiles_active", "dev",
-                                            "fileBucketName", fileBucket.getBucketName()
+                                            "fileBucketName", fileBucket.getBucketName(),
+                                            "postgreshost", postgresInstance.getDbInstanceEndpointAddress(),
+                                            "postgresusername", postgresInstance.getSecret().secretValueFromJson("username").toString(),
+                                            "postgrespassword", postgresInstance.getSecret().secretValueFromJson("password").toString()
                                     ))
                                     .build())
                         .tagOrDigest("latest")
@@ -153,8 +227,20 @@ public class BFPServiceStack extends StagedStack {
                                 .unhealthyThreshold(5)
                                 .healthyThreshold(1)
                         .build()))
+                .vpcConnector(vpcConnector)
                 .instanceRole(instanceRole)
                 .build();
+
+        new CfnOutput(this, "BastionHostIp-" + getStage(), CfnOutputProps.builder()
+                .value(vpc.getBastionInstance().getInstancePublicIp())
+                .description("Public IP of bastion host")
+                .build()
+        );
+
+        new CfnOutput(this, "BFPFileBucket-" + getStage(), CfnOutputProps.builder()
+                .value(fileBucket.getBucketName())
+                .description("File bucket name")
+                .build());
 
         new CfnOutput(this, "BFPUserPool-" + getStage() + " output", CfnOutputProps.builder()
                 .value(userPool.getUserPoolId())
@@ -164,6 +250,11 @@ public class BFPServiceStack extends StagedStack {
         new CfnOutput(this, "BFPUserPoolClient-" + getStage() + " output", CfnOutputProps.builder()
                 .value(userPoolClient.getUserPoolClientId())
                 .description("UserPoolClientId")
+                .build());
+
+        new CfnOutput(this, "BFPUserPoolDomain-" + getStage() + " output", CfnOutputProps.builder()
+                .value(domain.getDomainName())
+                .description("UserPoolDomain")
                 .build());
 
         new CfnOutput(this, "BFPServiceURL-" + getStage() + " output", CfnOutputProps.builder()

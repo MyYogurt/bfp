@@ -1,11 +1,8 @@
 package com.bfp.service;
 
 import com.bfp.auth.AuthHandler;
-import com.bfp.common.CommonRequestHelper;
 import com.bfp.model.AuthenticateRequest;
 import com.bfp.model.AuthenticateResponse;
-import com.bfp.model.exceptions.InvalidParameterException;
-import com.bfp.model.exceptions.UnauthorizedException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class AuthService {
+    @Autowired
+    private CommonRequestHelper commonRequestHelper;
 
     private final AuthHandler authHandler;
 
@@ -28,8 +27,13 @@ public class AuthService {
         return response;
     }
 
+    @GetMapping("/logout")
+    public void logout() {
+        authHandler.signOut(commonRequestHelper.getAccessToken());
+    }
+
     @GetMapping("/hello")
     public String hello() {
-        return CommonRequestHelper.getUserId();
+        return commonRequestHelper.getUserId();
     }
 }

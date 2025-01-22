@@ -2,6 +2,8 @@ openapi: "3.0.0"
 info:
   title: BFP Service Model
   version: 1.0.0
+servers:
+  - url: http://localhost:8080
 paths:
   /initiateAuth:
     post:
@@ -23,7 +25,7 @@ paths:
   /file:
     post:
       summary: Upload a file
-      operationId: uploadFile
+      operationId: createFile
       requestBody:
         required: true
         content:
@@ -70,6 +72,11 @@ paths:
                   contentType: application/octet-stream
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     AuthenticateRequest:
       type: object
@@ -100,3 +107,47 @@ components:
       properties:
         id:
           type: string
+    BFPFile:
+      type: object
+      required:
+        - id
+        - name
+        - size
+        - createdAt
+        - modifiedAt
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        modifiedAt:
+          type: string
+          format: date-time
+    ListedBFPFile:
+      type:
+        object
+      required:
+        - id
+        - name
+        - size
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        size:
+          type: integer
+          format: int64
+
+security:
+  - bearerAuth: []

@@ -5,9 +5,9 @@
 -- DROP TABLE bfp.file_table;
 -- DROP SCHEMA bfp;
 
-CREATE SCHEMA bfp AUTHORIZATION postgres;
+CREATE SCHEMA IF NOT EXISTS bfp AUTHORIZATION postgres;
 
-CREATE TABLE bfp.file_table (
+CREATE TABLE IF NOT EXISTS bfp.file_table (
 	id uuid NOT NULL,
 	owner_id text NOT NULL,
 	file_name text NOT NULL,
@@ -18,4 +18,4 @@ CREATE TABLE bfp.file_table (
 	CONSTRAINT "FileTable_pkey" PRIMARY KEY (id)
 );
 
-CREATE INDEX file_table_owner_id_idx ON bfp.file_table USING btree (owner_id);
+CREATE INDEX IF NOT EXISTS file_table_owner_id_idx ON bfp.file_table USING btree (owner_id);

@@ -18,4 +18,9 @@ public class DummyAuthHandler implements AuthHandler {
                 .build();
         return response;
     }
+
+    @Override
+    public void signOut(String accessToken) {
+
+    }
 }

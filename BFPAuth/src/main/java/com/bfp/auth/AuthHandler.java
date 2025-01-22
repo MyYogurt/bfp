@@ -5,4 +5,5 @@ import com.bfp.model.AuthenticateResponse;
 
 public interface AuthHandler {
     AuthenticateResponse authenticate(AuthenticateRequest AuthenticateRequest);
+    void signOut(String accessToken);
 }

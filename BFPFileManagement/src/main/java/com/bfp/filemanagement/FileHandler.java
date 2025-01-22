@@ -2,42 +2,31 @@ package com.bfp.filemanagement;
 
 import com.bfp.common.CommonRequestHelper;
 import com.bfp.filemanagement.dao.FileDAO;
+import com.bfp.filemanagement.dao.FileMetadataDAO;
 import com.bfp.filemanagement.dao.FileDO;
+import com.bfp.model.BFPFile;
 import com.bfp.model.CreateFileResponse;
+import com.bfp.model.ListedBFPFile;
 import com.bfp.model.exceptions.InvalidParameterException;
 import com.bfp.model.exceptions.ResourceNotFoundException;
 import com.bfp.model.exceptions.UnauthorizedException;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
-import software.amazon.awssdk.services.s3.model.CompletedPart;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.UploadPartRequest;
-import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public class FileHandler {
+    private final FileMetadataDAO fileMetadataDAO;
     private final FileDAO fileDAO;
-    private final S3Client s3Client;
 
-    private final String bucketName;
-
-    public FileHandler(FileDAO fileDAO, S3Client s3Client, String bucketName) {
+    public FileHandler(FileMetadataDAO fileMetadataDAO, FileDAO fileDAO) {
+        this.fileMetadataDAO = fileMetadataDAO;
         this.fileDAO = fileDAO;
-        this.s3Client = s3Client;
-        this.bucketName = bucketName;
     }
 
     public CreateFileResponse createFile(MultipartFile uploadFile) throws IOException {
@@ -51,7 +40,7 @@ public class FileHandler {
         UUID fileId = UUID.randomUUID();
         String filename = uploadFile.getOriginalFilename();
         Instant createdAt = Instant.now();
-        String fileLocation = uploadFileToS3(uploadFile.getInputStream(), uploadFile.getSize(), bucketName, fileId.toString());
+        String fileLocation = fileDAO.createFile(fileId.toString(), uploadFile);
 
         FileDO fileDO = FileDO.builder()
                 .id(fileId)
@@ -63,20 +52,21 @@ public class FileHandler {
                 .updatedAt(createdAt)
                 .build();
 
-        fileDAO.saveFile(fileDO);
+        fileMetadataDAO.saveFile(fileDO);
 
         return CreateFileResponse.builder()
                 .id(fileId.toString())
                 .build();
     }
 
-    public MultipartFile getFile(FileDO fileDO) {
-        // Implementation for retrieving a file
-        return null;
-    }
+    public BFPFile getFileInfo(String fileId) {
+        Optional<FileDO> filePromise =  fileMetadataDAO.getFile(UUID.fromString(fileId));
 
-    public FileDO getFile(String fileId) {
-        FileDO file =  fileDAO.getFile(UUID.fromString(fileId)).orElseThrow();
+        if (filePromise.isEmpty()) {
+            throw new ResourceNotFoundException();
+        }
+
+        FileDO file = filePromise.get();
 
         String ownerId = CommonRequestHelper.getUserId();
 
@@ -84,11 +74,13 @@ public class FileHandler {
             throw new UnauthorizedException("You are not authorized to access this file.");
         }
 
-        return file;
+        BFPFile bfpFile = convertFileDOToModelFile(file);
+
+        return bfpFile;
     }
 
-    public FileDO updateFile(String fileId, MultipartFile newFile) throws IOException {
-        Optional<FileDO> file =  fileDAO.getFile(UUID.fromString(fileId));
+    public byte[] downloadFile(String fileId) {
+        Optional<FileDO> file =  fileMetadataDAO.getFile(UUID.fromString(fileId));
 
         if (file.isEmpty()) {
             throw new ResourceNotFoundException();
@@ -98,17 +90,35 @@ public class FileHandler {
 
         verifyFileOwner(fileDO);
 
-        uploadFileToS3(newFile.getInputStream(), newFile.getSize(), bucketName, fileId);
+        byte[] fileContent = fileDAO.getFile(fileDO.getId().toString());
+
+        return fileContent;
+    }
+
+    public BFPFile updateFile(String fileId, MultipartFile newFile) throws IOException {
+        Optional<FileDO> file =  fileMetadataDAO.getFile(UUID.fromString(fileId));
+
+        if (file.isEmpty()) {
+            throw new ResourceNotFoundException();
+        }
+
+        FileDO fileDO = file.get();
+
+        verifyFileOwner(fileDO);
+
+        fileDAO.updateFile(fileId, newFile);
 
         updateFileDO(fileDO, newFile);
 
-        fileDAO.updateFile(fileDO);
+        fileMetadataDAO.updateFile(fileDO);
 
-        return fileDO;
+        BFPFile bfpFile = convertFileDOToModelFile(fileDO);
+
+        return bfpFile;
     }
 
     public void deleteFile(String fileId) {
-        Optional<FileDO> file =  fileDAO.getFile(UUID.fromString(fileId));
+        Optional<FileDO> file =  fileMetadataDAO.getFile(UUID.fromString(fileId));
 
         if (file.isEmpty()) {
             throw new ResourceNotFoundException();
@@ -118,51 +128,16 @@ public class FileHandler {
 
         verifyFileOwner(fileDO);
 
-        deleteFileFromS3(bucketName, fileDO.getId().toString());
+        fileDAO.deleteFile(fileDO.getId().toString());
 
-        fileDAO.deleteFile(fileDO.getId());
+        fileMetadataDAO.deleteFile(fileDO.getId());
     }
 
-    private String uploadFileToS3(InputStream fileInputStream, long contentLength, String bucketName, String filename) {
-        List<CompletedPart> completedParts = new ArrayList<>();
-        int partNumber = 1;
-
-        CreateMultipartUploadResponse  createMultipartUploadResponse = s3Client.createMultipartUpload(CreateMultipartUploadRequest.builder()
-                .bucket(bucketName)
-                .key(filename)
-                .build());
-        UploadPartResponse uploadPartResponse = s3Client.uploadPart(UploadPartRequest.builder()
-                .bucket(bucketName)
-                .key(filename)
-                .uploadId(createMultipartUploadResponse.uploadId())
-                .partNumber(partNumber)
-                .build(), RequestBody.fromInputStream(fileInputStream, contentLength));
-        completedParts.add(CompletedPart.builder()
-                .partNumber(partNumber)
-                .eTag(uploadPartResponse.eTag())
-                .build());
-        CompletedMultipartUpload completed = CompletedMultipartUpload.builder()
-                .parts(completedParts)
-                .build();
-        CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(CompleteMultipartUploadRequest.builder()
-                .bucket(bucketName)
-                .key(filename)
-                .uploadId(createMultipartUploadResponse.uploadId())
-                .multipartUpload(completed)
-                .build());
-        return completeMultipartUploadResponse.location();
-    }
-
-    private void deleteFileFromS3(String bucketName, String filename) {
-        s3Client.deleteObject(DeleteObjectRequest.builder()
-                .bucket(bucketName)
-                .key(filename)
-                .build());
-    }
-
-    public List<FileDO> listFiles() {
+    public List<ListedBFPFile> listFiles() {
         String ownerId = CommonRequestHelper.getUserId();
-        return fileDAO.getAllFilesByOwnerId(ownerId);
+        List<FileDO> fileList = fileMetadataDAO.getAllFilesByOwnerId(ownerId);
+        List<ListedBFPFile> modelFileList = convertFileDOListToModelFileList(fileList);
+        return modelFileList;
     }
 
     private void updateFileDO(FileDO fileDO, MultipartFile newFile) {
@@ -177,5 +152,31 @@ public class FileHandler {
         if (!fileDO.getOwnerId().equals(ownerId)) {
             throw new UnauthorizedException("You are not authorized to access this file.");
         }
+    }
+
+    private BFPFile convertFileDOToModelFile(FileDO fileDO) {
+        return BFPFile.builder()
+                .id(fileDO.getId())
+                .name(fileDO.getFileName())
+                .size(fileDO.getFileSize())
+                .createdAt(fileDO.getCreatedAt().atOffset(ZoneOffset.UTC))
+                .modifiedAt(fileDO.getUpdatedAt().atOffset(ZoneOffset.UTC))
+                .build();
+    }
+
+    private ListedBFPFile convertFileDOToListedModelFile(FileDO fileDO) {
+        return ListedBFPFile.builder()
+                .id(fileDO.getId())
+                .name(fileDO.getFileName())
+                .size(fileDO.getFileSize())
+                .build();
+    }
+
+    private List<ListedBFPFile> convertFileDOListToModelFileList(List<FileDO> fileDOList) {
+        List<ListedBFPFile> files = new ArrayList<>();
+        for (FileDO fileDO : fileDOList) {
+            files.add(convertFileDOToListedModelFile(fileDO));
+        }
+        return files;
     }
 }

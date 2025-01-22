@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminInitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminInitiateAuthResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.GlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
 
 import java.util.Map;
@@ -63,5 +64,12 @@ public class CognitoAuthHandler implements AuthHandler {
                 .build();
 
         return response;
+    }
+
+    @Override
+    public void signOut(String accessToken) {
+        cognitoIdentityProviderClient.globalSignOut(GlobalSignOutRequest.builder()
+                .accessToken(accessToken)
+                .build());
     }
 }

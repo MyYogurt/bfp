@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Repository
 @Primary
-public class PostgresFileDAO implements FileDAO {
+public class PostgresFileMetadataDAO implements FileMetadataDAO {
     @Autowired
     private BaseFileRepository fileRepository;
 
