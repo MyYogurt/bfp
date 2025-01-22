@@ -1,0 +1,79 @@
+name: Maven Multi-Module CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Required for detecting changes between commits
+
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'  # Adjust this to your project's Java version
+        distribution: 'corretto'
+        cache: maven
+
+    - name: Get changed modules
+      id: changed-modules
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For pull requests, compare with the base branch
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        else
+          # For pushes, compare with the previous commit
+          CHANGED_FILES=$(git diff --name-only HEAD^1 HEAD)
+        fi
+        
+        # Initialize empty array for maven modules
+        MAVEN_MODULES=()
+        
+        # For each changed file, check if its directory or parent directories contain pom.xml
+        while IFS= read -r file; do
+          dir=$(dirname "$file")
+          while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+            if [ -f "$dir/pom.xml" ]; then
+              MAVEN_MODULES+=("$dir")
+              break
+            fi
+            dir=$(dirname "$dir")
+          done
+        done <<< "$CHANGED_FILES"
+        
+        # Remove duplicates and create comma-separated list
+        UNIQUE_MODULES=$(printf "%s\n" "${MAVEN_MODULES[@]}" | sort -u | tr '\n' ',' | sed 's/,$//')
+        
+        if [ -z "$UNIQUE_MODULES" ]; then
+          # If no Maven modules changed, build the root project if it has a pom.xml
+          if [ -f "pom.xml" ]; then
+            echo "modules=." >> $GITHUB_OUTPUT
+          else
+            echo "modules=" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "modules=$UNIQUE_MODULES" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build and verify changed modules and dependents
+      if: steps.changed-modules.outputs.modules != ''
+      run: |
+        # Convert comma-separated list to space-separated
+        MODULES=$(echo ${{ steps.changed-modules.outputs.modules }} | tr ',' ' ')
+        
+        # Build changed modules and their dependents
+        mvn -B clean verify --projects $MODULES --also-make-dependents --no-transfer-progress
+
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
