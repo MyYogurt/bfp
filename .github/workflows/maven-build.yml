@@ -70,10 +70,3 @@ jobs:
         
         # Build changed modules and their dependents
         mvn -B clean verify --projects $MODULES --also-make-dependents --no-transfer-progress
-
-    - name: Cache Maven packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
