@@ -49,7 +49,7 @@ jobs:
         MODULES=$(echo ${{ steps.changed-modules.outputs.modules }} | tr ',' ' ')
         
         # Build changed modules and their dependents
-        mvn -B clean verify --projects $MODULES --also-make-dependents
+        mvn -B clean verify --projects $MODULES --also-make-dependents --no-transfer-progress
 
     - name: Cache Maven packages
       uses: actions/cache@v3
