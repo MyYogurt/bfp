@@ -1,23 +1,59 @@
-name: Maven Build and Test
+name: Maven Multi-Module CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "master" ]
   pull_request:
-    branches:
-      - '*'
+    branches: '*'
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          java-version: '21'
-          distribution: 'corretto'
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Required for detecting changes between commits
 
-      - name: Build with Maven
-        run: mvn --no-transfer-progress install
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'  # Adjust this to your project's Java version
+        distribution: 'corretto'
+        cache: maven
+
+    - name: Get changed modules
+      id: changed-modules
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For pull requests, compare with the base branch
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        else
+          # For pushes, compare with the previous commit
+          CHANGED_FILES=$(git diff --name-only HEAD^1 HEAD)
+        fi
+        
+        # Find all pom.xml files in changed directories
+        CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -o "^[^/]*/[^/]*/\?" | sort -u | sed 's:/$::' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
+        
+        if [ -z "$CHANGED_MODULES" ]; then
+          # If no modules changed, build the root project
+          echo "modules=." >> $GITHUB_OUTPUT
+        else
+          echo "modules=$CHANGED_MODULES" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build and verify changed modules and dependents
+      run: |
+        # Convert comma-separated list to space-separated
+        MODULES=$(echo ${{ steps.changed-modules.outputs.modules }} | tr ',' ' ')
+        
+        # Build changed modules and their dependents
+        mvn -B clean verify --projects $MODULES --also-make-dependents
+
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
