@@ -2,9 +2,9 @@ name: Maven Multi-Module CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master", "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: '*'
 
 jobs:
   build:
