@@ -18,8 +18,8 @@ jobs:
     - name: Set up JDK
       uses: actions/setup-java@v3
       with:
-        java-version: '17'  # Adjust this to your project's Java version
-        distribution: 'temurin'
+        java-version: '21'  # Adjust this to your project's Java version
+        distribution: 'corretto'
         cache: maven
 
     - name: Get changed modules
