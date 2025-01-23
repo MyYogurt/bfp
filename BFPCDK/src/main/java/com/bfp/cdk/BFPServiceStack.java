@@ -55,67 +55,54 @@ import java.util.List;
 import java.util.Map;
 
 public class BFPServiceStack extends StagedStack {
-    public BFPServiceStack(final Construct parent, final String id, String stage) {
+    public BFPServiceStack(final Construct parent, final String id, Stage stage) {
         this(parent, id, null, stage);
     }
 
-    public BFPServiceStack(final Construct parent, final String id, final StackProps props, String stage) {
+    public BFPServiceStack(final Construct parent, final String id, final StackProps props, Stage stage) {
         super(parent, id, props, stage);
 
-        VpcStack vpc = new VpcStack(this, "BFPVpcStack", getStage());
+        Bucket fileBucket = createFileBucket();
 
+        UserPool userPool = createUserPool();
+        UserPoolClient userPoolClient = createUserPoolClient(userPool);
+        UserPoolDomain userPoolDomain = createUserPoolDomain(userPool);
+        Secret userPoolClientSecret = createUserPoolClientSecret(userPoolClient);
+
+        if (getStage().equals(Stage.Dev)) {
+            return;
+        }
+
+        VpcStack vpc = createVpc();
+        DatabaseInstance database = createDatabase(vpc);
+        createService(vpc, userPool, userPoolClient, userPoolClientSecret, fileBucket, database);
+    }
+
+    VpcStack createVpc() {
+        VpcStack vpc = new VpcStack(this, "BFPVpcStack");
+
+        new CfnOutput(this, "BastionHostIp-" + getStage(), CfnOutputProps.builder()
+                .value(vpc.getBastionInstance().getInstancePublicIp())
+                .description("Public IP of bastion host")
+                .build()
+        );
+
+        return vpc;
+    }
+
+    Bucket createFileBucket() {
         Bucket fileBucket = new Bucket(this, "bfpfilebucket");
         fileBucket.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
-        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
-                .passwordPolicy(PasswordPolicy.builder()
-                        .minLength(8)
-                        .requireLowercase(false)
-                        .requireUppercase(false)
-                        .requireDigits(false)
-                        .requireSymbols(false)
-                        .build())
-                .accountRecovery(AccountRecovery.EMAIL_ONLY)
-                .deletionProtection(false)
-                .email(UserPoolEmail.withCognito())
-                .signInAliases(SignInAliases.builder()
-                        .username(true)
-                        .email(false)
-                        .build())
-                .signInCaseSensitive(true)
-                .selfSignUpEnabled(false)
-                .mfa(Mfa.OFF)
-                .standardAttributes(StandardAttributes.builder()
-                        .email(StandardAttribute.builder()
-                                .required(true)
-                                .build())
-                        .build())
-                .build();
+        new CfnOutput(this, "BFPFileBucket-" + getStage(), CfnOutputProps.builder()
+                .value(fileBucket.getBucketName())
+                .description("File bucket name")
+                .build());
 
-        userPool.applyRemovalPolicy(RemovalPolicy.DESTROY);
+        return fileBucket;
+    }
 
-        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
-                .userPool(userPool)
-                .authFlows(AuthFlow.builder()
-                        .userPassword(true)
-                        .adminUserPassword(true)
-                        .build())
-                .generateSecret(true)
-                .build();
-
-        Secret secret = Secret.Builder.create(this, "BFPSecret")
-                .secretName("BFPUserPoolClientSecret-" + getStage())
-                .secretName(userPoolClient.getUserPoolClientId())
-                .secretStringValue(userPoolClient.getUserPoolClientSecret())
-                .build();
-
-        UserPoolDomain domain = UserPoolDomain.Builder.create(this, "BFPUserPoolDomain")
-                .userPool(userPool)
-                .cognitoDomain(CognitoDomainOptions.builder()
-                        .domainPrefix("bfp-" + getStage())
-                        .build())
-                .build();
-
+    DatabaseInstance createDatabase(VpcStack vpc) {
         SubnetGroup subnetGroup = SubnetGroup.Builder.create(this, "BFPSubnetGroup")
                 .vpc(vpc.getVpc())
                 .description("BFPSubnetGroup")
@@ -144,7 +131,88 @@ public class BFPServiceStack extends StagedStack {
                 .autoMinorVersionUpgrade(true)
                 .multiAz(false)
                 .build();
+        return postgresInstance;
+    }
 
+    UserPool createUserPool() {
+        UserPool userPool = UserPool.Builder.create(this, "BFPUserPool")
+                .passwordPolicy(PasswordPolicy.builder()
+                        .minLength(8)
+                        .requireLowercase(false)
+                        .requireUppercase(false)
+                        .requireDigits(false)
+                        .requireSymbols(false)
+                        .build())
+                .accountRecovery(AccountRecovery.NONE)
+                .deletionProtection(false)
+                .email(UserPoolEmail.withCognito())
+                .signInAliases(SignInAliases.builder()
+                        .username(true)
+                        .email(false)
+                        .build())
+                .signInCaseSensitive(true)
+                .selfSignUpEnabled(false)
+                .mfa(Mfa.OFF)
+                .standardAttributes(StandardAttributes.builder()
+                        .email(StandardAttribute.builder()
+                                .required(true)
+                                .build())
+                        .build())
+                .build();
+        userPool.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+        new CfnOutput(this, "BFPUserPool-" + getStage() + " output", CfnOutputProps.builder()
+                .value(userPool.getUserPoolId())
+                .description("UserPoolId")
+                .build());
+
+        return userPool;
+    }
+
+    UserPoolClient createUserPoolClient(UserPool userPool) {
+        UserPoolClient userPoolClient = UserPoolClient.Builder.create(this, "BFPUserPoolClient")
+                .userPool(userPool)
+                .authFlows(AuthFlow.builder()
+                        .userPassword(true)
+                        .adminUserPassword(true)
+                        .build())
+                .generateSecret(true)
+                .build();
+
+        new CfnOutput(this, "BFPUserPoolClient-" + getStage() + " output", CfnOutputProps.builder()
+                .value(userPoolClient.getUserPoolClientId())
+                .description("UserPoolClientId")
+                .build());
+
+        return userPoolClient;
+    }
+
+    Secret createUserPoolClientSecret(UserPoolClient userPoolClient) {
+        Secret secret = Secret.Builder.create(this, "BFPSecret")
+                .secretName("BFPUserPoolClientSecret-" + getStage())
+                .secretName(userPoolClient.getUserPoolClientId())
+                .secretStringValue(userPoolClient.getUserPoolClientSecret())
+                .build();
+        return secret;
+    }
+
+    UserPoolDomain createUserPoolDomain(UserPool userPool) {
+        UserPoolDomain domain = UserPoolDomain.Builder.create(this, "BFPUserPoolDomain")
+                .userPool(userPool)
+                .cognitoDomain(CognitoDomainOptions.builder()
+                        .domainPrefix("bfp-" + getStage())
+                        .build())
+                .build();
+
+        new CfnOutput(this, "BFPUserPoolDomain-" + getStage() + " output", CfnOutputProps.builder()
+                .value(domain.getDomainName())
+                .description("UserPoolDomain")
+                .build());
+
+        return domain;
+    }
+
+    Service createService(VpcStack vpc, UserPool userPool, UserPoolClient userPoolClient, Secret userPoolClientSecret, Bucket fileBucket, DatabaseInstance postgresInstance) {
         PolicyDocument policyDocument = PolicyDocument.Builder.create()
                 .statements(List.of(
                         PolicyStatement.Builder.create()
@@ -161,6 +229,7 @@ public class BFPServiceStack extends StagedStack {
                                 .effect(Effect.ALLOW)
                                 .actions(List.of(
                                         "s3:PutObject",
+                                        "s3:GetObject",
                                         "s3:DeleteObject"
                                 ))
                                 .resources(List.of(
@@ -174,7 +243,7 @@ public class BFPServiceStack extends StagedStack {
                                         "secretsmanager:GetSecretValue"
                                 ))
                                 .resources(List.of(
-                                        secret.getSecretArn(),
+                                        userPoolClientSecret.getSecretArn(),
                                         postgresInstance.getSecret().getSecretArn()
                                 ))
                                 .build())
@@ -186,7 +255,7 @@ public class BFPServiceStack extends StagedStack {
                 .inlinePolicies(Map.of("BFPInstanceRolePolicy", policyDocument))
                 .build();
 
-        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfpservicerepository/" + getStage().toLowerCase());
+        IRepository repository = Repository.fromRepositoryName(this, "BFPRepository", "bfpservicerepository/" + getStage().toString().toLowerCase());
 
         VpcConnector vpcConnector = new VpcConnector(this, "BFPVpcConnector", VpcConnectorProps.builder()
                 .vpc(vpc.getVpc())
@@ -198,20 +267,20 @@ public class BFPServiceStack extends StagedStack {
 
         Service bfpservice = Service.Builder.create(this, "BFPService")
                 .source(Source.fromEcr(EcrProps.builder()
-                    .repository(repository)
-                            .imageConfiguration(ImageConfiguration.builder()
-                                    .port(8080)
-                                    .environmentVariables(Map.of(
-                                            "userpoolid", userPool.getUserPoolId(),
-                                            "userpoolclientid", userPoolClient.getUserPoolClientId(),
-                                            "fileBucketName", fileBucket.getBucketName(),
-                                            "postgreshost", postgresInstance.getDbInstanceEndpointAddress(),
-                                            "postgresusername", postgresInstance.getSecret().secretValueFromJson("username").toString(),
-                                            "postgrespassword", postgresInstance.getSecret().secretValueFromJson("password").toString()
-                                    ))
-                                    .build())
+                        .repository(repository)
+                        .imageConfiguration(ImageConfiguration.builder()
+                                .port(8080)
+                                .environmentVariables(Map.of(
+                                        "userpoolid", userPool.getUserPoolId(),
+                                        "userpoolclientid", userPoolClient.getUserPoolClientId(),
+                                        "fileBucketName", fileBucket.getBucketName(),
+                                        "postgreshost", postgresInstance.getDbInstanceEndpointAddress(),
+                                        "postgresusername", postgresInstance.getSecret().secretValueFromJson("username").toString(),
+                                        "postgrespassword", postgresInstance.getSecret().secretValueFromJson("password").toString()
+                                ))
+                                .build())
                         .tagOrDigest("latest")
-                    .build()))
+                        .build()))
                 .autoDeploymentsEnabled(true)
                 .autoScalingConfiguration(AutoScalingConfiguration.Builder.create(this, "BFPAppRunnerAutoScalingConfiguration")
                         .minSize(1)
@@ -221,45 +290,21 @@ public class BFPServiceStack extends StagedStack {
                 .cpu(Cpu.HALF_VCPU)
                 .memory(Memory.ONE_GB)
                 .healthCheck(HealthCheck.http(HttpHealthCheckOptions.builder()
-                                .path("/actuator/health")
-                                .timeout(Duration.seconds(5))
-                                .interval(Duration.seconds(10))
-                                .unhealthyThreshold(5)
-                                .healthyThreshold(1)
+                        .path("/actuator/health")
+                        .timeout(Duration.seconds(5))
+                        .interval(Duration.seconds(10))
+                        .unhealthyThreshold(5)
+                        .healthyThreshold(1)
                         .build()))
                 .vpcConnector(vpcConnector)
                 .instanceRole(instanceRole)
                 .build();
 
-        new CfnOutput(this, "BastionHostIp-" + getStage(), CfnOutputProps.builder()
-                .value(vpc.getBastionInstance().getInstancePublicIp())
-                .description("Public IP of bastion host")
-                .build()
-        );
-
-        new CfnOutput(this, "BFPFileBucket-" + getStage(), CfnOutputProps.builder()
-                .value(fileBucket.getBucketName())
-                .description("File bucket name")
-                .build());
-
-        new CfnOutput(this, "BFPUserPool-" + getStage() + " output", CfnOutputProps.builder()
-                .value(userPool.getUserPoolId())
-                .description("UserPoolId")
-                .build());
-
-        new CfnOutput(this, "BFPUserPoolClient-" + getStage() + " output", CfnOutputProps.builder()
-                .value(userPoolClient.getUserPoolClientId())
-                .description("UserPoolClientId")
-                .build());
-
-        new CfnOutput(this, "BFPUserPoolDomain-" + getStage() + " output", CfnOutputProps.builder()
-                .value(domain.getDomainName())
-                .description("UserPoolDomain")
-                .build());
-
         new CfnOutput(this, "BFPServiceURL-" + getStage() + " output", CfnOutputProps.builder()
                 .value(bfpservice.getServiceUrl())
                 .description("BFPService URL")
                 .build());
+
+        return bfpservice;
     }
 }

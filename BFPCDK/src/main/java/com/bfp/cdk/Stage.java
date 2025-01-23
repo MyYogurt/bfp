@@ -2,7 +2,8 @@ package com.bfp.cdk;
 
 public enum Stage {
     Gamma("Gamma"),
-    Prod("Prod");
+    Prod("Prod"),
+    Dev("Dev");
 
     private final String stage;
 
@@ -27,6 +28,6 @@ public enum Stage {
         }
 
         // Need a default for cdk bootstrap
-        return Gamma;
+        return Dev;
     }
 }

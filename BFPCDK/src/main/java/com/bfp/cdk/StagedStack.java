@@ -8,15 +8,15 @@ import software.constructs.Construct;
 
 @Getter
 public class StagedStack extends Stack {
-    private final String stage;
+    private final Stage stage;
 
-    public StagedStack(final Construct parent, final String id, final String stage) {
+    public StagedStack(final Construct parent, final String id, final Stage stage) {
         this(parent, id, null, stage);
     }
 
-    public StagedStack(final Construct parent, final String id, final StackProps props, String stage) {
+    public StagedStack(final Construct parent, final String id, final StackProps props, Stage stage) {
         super(parent, id + "-" + stage, props);
-        Tags.of(this).add("stage", stage);
+        Tags.of(this).add("stage", stage.toString());
         this.stage = stage;
     }
 }
