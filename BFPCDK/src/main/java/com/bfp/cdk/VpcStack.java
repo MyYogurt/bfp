@@ -27,11 +27,11 @@ public class VpcStack extends NestedStack {
     private final SecurityGroup securityGroup;
     private final Instance bastionInstance;
 
-    public VpcStack(final Construct parent, final String id, String stage) {
-        this(parent, id, null, stage);
+    public VpcStack(final Construct parent, final String id) {
+        this(parent, id, null);
     }
 
-    public VpcStack(final Construct parent, final String id, final StackProps props, String stage) {
+    public VpcStack(final Construct parent, final String id, final StackProps props) {
         super(parent, id);
 
         vpc = Vpc.Builder.create(this, "SimpleVpc")

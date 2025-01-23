@@ -7,7 +7,7 @@ public class BFPApp {
         App app = new App();
         String stage = (String) app.getNode().tryGetContext("stage");
         Stage stageEnum = Stage.fromString(stage);
-        BFPServiceStack serviceStack = new BFPServiceStack(app, "BFPService", stageEnum.toString());
+        BFPServiceStack serviceStack = new BFPServiceStack(app, "BFPService", stageEnum);
         app.synth();
     }
 }
