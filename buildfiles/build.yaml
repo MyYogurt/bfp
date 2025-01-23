@@ -8,3 +8,8 @@ phases:
     commands:
       - echo Building BFP
       - mvn install --no-transfer-progress
+artifacts:
+  files:
+    - BFPService/target/*.jar
+  name: BFPService.jar
+  discard-paths: yes
